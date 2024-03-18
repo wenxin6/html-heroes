@@ -1,76 +1,31 @@
-function editUserName(){
-    let el = document.getElementById("username");
-
-    el.style.display = 'none';
-
-    let input = document.getElementById("edit-username");
-    input.style.display = 'inline';
-    input.focus();
-    input.value = el.innerText;
-
-}
-
-
-function handleUserNameBlur() {
-    let el = document.getElementById("edit-username");
-    let formData = new FormData();
-    formData.append("username", el.value)
-
-    fetch(`update-username/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': getCookie('csrftoken') // Get CSRF token
-        },
-        body: formData
-    })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            let errEl = document.getElementById("update-username-error")
-            if (errEl) {
-                errEl.remove()
-            }
-            if (data.error !== '') {
-                let parentElement = document.getElementById("profile-info");
-                let spanElement = document.createElement("span");
-                spanElement.textContent = data.error;
-                spanElement.style.color = 'red';
-                spanElement.setAttribute("id", "update-username-error")
-                parentElement.insertBefore(spanElement, el.nextSibling)
-                el.focus();
-            }
-            else {
-                el.style.display = 'none'
-                let username = document.getElementById("username");
-                username.innerText = el.value
-                username.style.display = 'inline';
-                let parts = window.location.pathname.split('/')
-                parts[parts.length - 2] = el.value
-                history.replaceState(null, "User Profile Page", parts.join('/'));
-            }
-
-        })
-        .catch(error => {
-            el.focus();
-        });
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    /*   data = {
-            'user1_follows_user2': user1_follows_user2,
-            'user2_follows_user1': user2_follows_user1,
-            'user1_followed_by_user2': user1_followed_by_user2,
-            'user2_followed_by_user1': user2_followed_by_user1,
-            'already_friend': user1_makeFriend_user2 and user2_makeFriend_user1,
-            'mutual_follow': user1_follows_user2 and user2_follows_user1 and user1_followed_by_user2 and user2_followed_by_user1,
-        }*/
+document.addEventListener('DOMContentLoaded', async function() {
 
     const selfUsername = _getURLSelfUsername();
-    const targetUsername = _getURLTargetUsername();
+    const remoteNodename = _getURLRemoteNodename();
+    const remoteUsername = _getURLRemoteUsername();
+    console.log("selfUsername ", selfUsername)
+    console.log("remoteNodename ", remoteNodename)
+    console.log("remoteUsername ", remoteUsername)
+
+    let RemoteOPENAPIS = await _getRemoteUserOPENAPIS(remoteNodename, remoteUsername);
+    console.log("RemoteOPENAPIS ", RemoteOPENAPIS)
+    const {
+        remote_node_Name,
+        remote_openapi_url,
+        remote_inbox_api_url,
+        remote_follow_api_url,
+    } = RemoteOPENAPIS
+
+    const FRAcceptURL = `${window.location.protocol}//${window.location.hostname}/openapi/accept-remote-follow/${remote_node_Name}/${selfUsername}/${remoteUsername}/`;
+    const FRRejectURL = `${window.location.protocol}//${window.location.hostname}/openapi/reject-remote-follow/${remote_node_Name}/${selfUsername}/${remoteUsername}/`;
+    console.log("FRAcceptURL", FRAcceptURL)
+    console.log("FRRejectURL", FRRejectURL)
+
+    const urlsJSON = {
+        click_to_accept_the_remote_follow_request: FRAcceptURL,
+        click_to_reject_the_remote_follow_request: FRRejectURL
+    };
+
     const followButton = document.getElementById('follow-btn');
     const unfollowButton = document.getElementById('unfollow-btn');
     const relationInstruction = document.getElementById('relation');
@@ -78,7 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
     followButton.style.display = "none";
     unfollowButton.style.display = "none";
 
-    fetch(`/api/user/${selfUsername}/anyRelations/${targetUsername}/`)
+
+    fetch(`/api/user/${selfUsername}/anyRelations/${remoteUsername}/`)
         .then(relationResponse => {
             if (!relationResponse.ok) {
                 throw new Error('Network response was not ok.');
@@ -87,32 +43,33 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(relations => {
             if (relations["already_friend"]) {
-                relationInstruction.textContent = `- ${targetUsername} Is Your Friend -`;
+                relationInstruction.textContent = `- ${remoteUsername} Is Your Remote Friend from ${remoteNodename}-`;
                 followButton.style.display = "none";
                 unfollowButton.style.display = "inline";
             }
             else if (relations["user1_follows_user2"] && relations["user2_followed_by_user1"]) {
-                relationInstruction.textContent = `- You Are Following ${targetUsername} -`;
+                relationInstruction.textContent = `- You Are Following Remote User ${remoteUsername} from ${remoteNodename} -`;
                 followButton.style.display = "none";
                 unfollowButton.style.display = "inline";
             }
             else if (relations["user2_follows_user1"] && relations["user1_followed_by_user2"]) {
-                relationInstruction.textContent = `- ${targetUsername} Is Your Follower -`;
+                relationInstruction.textContent = `- ${remoteUsername} from ${remoteNodename} Is Your Remote Follower -`;
                 followButton.style.display = "inline";
                 unfollowButton.style.display = "none";
             }
             else {
-                relationInstruction.textContent = `- Hi, I'm ${targetUsername}, Nice To Meet U -`;
+                relationInstruction.textContent = `- Hi, I'm ${remoteUsername} from ${remoteNodename}, Nice To Meet U -`;
                 followButton.style.display = "inline";
                 unfollowButton.style.display = "none";
             }
         })
 
+
     if (followButton) {
         followButton.addEventListener('click', function() {
             // Todo - Check if they are already friends, if not then continue the follow process:
             let areFriends = true;
-            fetch(`/api/user/${selfUsername}/anyRelations/${targetUsername}/`)
+            fetch(`/api/user/${selfUsername}/anyRelations/${remoteUsername}/`)
                 .then(relationResponse => {
                     if (!relationResponse.ok) {
                         throw new Error('Network response was not ok.');
@@ -126,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     else {
                         // Todo - For `USER_SELF`, set `USER_TARGET` as a following of `USER_SELF`:
-                        fetch(`/api/user/${selfUsername}/followerOf/${targetUsername}/`, {
+                        fetch(`/api/user/${selfUsername}/followerOf/${remoteUsername}/`, {
                             method: 'POST',
                             headers: {
                                 'X-CSRFToken': getCookie('csrftoken'),
@@ -135,47 +92,34 @@ document.addEventListener('DOMContentLoaded', function() {
                         })
                             .then(response => {
                                 if (response.ok) {
+                                    createRemoteMessage(remote_inbox_api_url, "FR", JSON.stringify(urlsJSON), selfUsername + " from " + window.location.hostname)
                                     followButton.style.display = 'none';
-                                    unfollowButton.style.display = 'inline';
-
-                                    // Todo - For `USER_TARGET`, set `USER_SELF` as a follower of `USER_TARGET`:
-                                    fetch(`/api/user/${selfUsername}/following/${targetUsername}/`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'X-CSRFToken': getCookie('csrftoken'),
-                                            'Content-Type': 'application/json'
-                                        }
-                                    })
-                                        .then(response => {
-                                            if (response.ok) {
-                                                alert("Follow request sent successfully!");
-                                                // Todo - For BOTH, if the two are following each other and being followed by each other,
-                                                //  then activate the “friend mechanism”, remove their following & follower relations but
-                                                //  keep a friend relation between them:
-                                                fetch(`/api/user/${selfUsername}/anyRelations/${targetUsername}/`)
+                                    unfollowButton.style.display = 'none';
+                                    alert("Follow request sent successfully! Pending Review...");
+                                    // Todo - For BOTH, if the two are following each other and being followed by each other,
+                                    //  then activate the “friend mechanism”, remove their following & follower relations but
+                                    //  keep a friend relation between them:
+                                    fetch(`/api/user/${selfUsername}/anyRelations/${remoteUsername}/`)
+                                        .then(relationResponse => {
+                                            if (relationResponse.ok) {
+                                                return relationResponse.json()
+                                            }
+                                        })
+                                        .then(relations => {
+                                            let isFriend = relations["mutual_follow"]
+                                            if (isFriend) {
+                                                // Todo - If relationships are valid, then process the “friend mechanism”:
+                                                fetch(`/api/user/${selfUsername}/friend/${remoteUsername}/`, {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'X-CSRFToken': getCookie('csrftoken'),
+                                                        'Content-Type': 'application/json'
+                                                    }
+                                                })
                                                     .then(relationResponse => {
                                                         if (relationResponse.ok) {
+                                                            alert("You are friends now!!")
                                                             return relationResponse.json()
-                                                        }
-                                                    })
-                                                    .then(relations => {
-                                                        let isFriend = relations["mutual_follow"]
-                                                        if (isFriend) {
-                                                            // Todo - If relationships are valid, then process the “friend mechanism”:
-                                                            fetch(`/api/user/${selfUsername}/friend/${targetUsername}/`, {
-                                                                method: 'POST',
-                                                                headers: {
-                                                                    'X-CSRFToken': getCookie('csrftoken'),
-                                                                    'Content-Type': 'application/json'
-                                                                }
-                                                            })
-                                                                .then(relationResponse => {
-                                                                    if (relationResponse.ok) {
-                                                                        alert("You are friends now!!")
-                                                                        return relationResponse.json()
-                                                                    }
-                                                                })
-                                                                .catch(error => console.error('Error:', error));
                                                         }
                                                     })
                                                     .catch(error => console.error('Error:', error));
@@ -202,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (unfollowButton) {
         unfollowButton.addEventListener('click', function() {
             alert("fuck");
-            fetch(`/api/user/${selfUsername}/anyRelations/${targetUsername}/`)
+            fetch(`/api/user/${selfUsername}/anyRelations/${remoteUsername}/`)
                 .then(relationResponse => {
                     if (!relationResponse.ok) {
                         throw new Error('Network response was not ok.');
@@ -211,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(relations => {
                     if (relations["user1_follows_user2"] && relations["user2_followed_by_user1"]) {
-                        fetch(`/api/user/${selfUsername}/unfollowerOf/${targetUsername}/`, {
+                        fetch(`/api/user/${selfUsername}/unfollowerOf/${remoteUsername}/`, {
                             method: 'DELETE',
                             headers: {
                                 'X-CSRFToken': getCookie('csrftoken'),
@@ -225,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 return response.json();
                             })
                             .then(relations => {
-                                fetch(`/api/user/${targetUsername}/unfollowing/${selfUsername}/`, {
+                                fetch(`/api/user/${remoteUsername}/unfollowing/${selfUsername}/`, {
                                     method: 'DELETE',
                                     headers: {
                                         'X-CSRFToken': getCookie('csrftoken'),
@@ -246,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             })
                     }
                     else if (relations["already_friend"]) {
-                        fetch(`/api/user/${selfUsername}/unfriend/${targetUsername}/`, {
+                        fetch(`/api/user/${selfUsername}/unfriend/${remoteUsername}/`, {
                             method: 'DELETE',
                             headers: {
                                 'X-CSRFToken': getCookie('csrftoken'),
@@ -258,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     throw new Error('Network response was not ok.');
                                 }
                                 else {
-                                    alert(`Unfollow Successfully, ${targetUsername} Is Still Following You.`);
+                                    alert(`Unfollow Successfully, ${remoteUsername} Is Still Following You.`);
                                     unfollowButton.style.display = 'none';
                                     followButton.style.display = 'inline';
                                 }
@@ -273,10 +217,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 });
 
+
 // Load recent posts for the user
 document.addEventListener('DOMContentLoaded', () => {
     const recentPostsContainer = document.getElementById('recent-posts');
-    const username = recentPostsContainer.getAttribute('data-username');
+    const username = _getURLRemoteUsername();
 
     fetch(`/api/user/${username}/posts`)
         .then(response => response.json())
@@ -308,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p class="post-content">${post.content}</p>
                         </div>
                     `;
-                    
+
                     postLink.innerHTML = contentHTML;
                     postElement.appendChild(postLink);
                     recentPostsContainer.appendChild(postElement);
@@ -330,27 +275,28 @@ document.addEventListener('DOMContentLoaded', () => {
 // Load friend list
 document.addEventListener('DOMContentLoaded', () => {
     const friendListContainer = document.getElementById('friendList');
-    const username = friendListContainer.getAttribute('data-username'); 
+    const username = _getURLRemoteUsername();
 
     fetch(`/api/user/${username}/friends/`)
         .then(response => response.json())
         .then(friendships => {
             // console.log(friendships.length);
             if (friendships.length === 0) {
-                friendListContainer.style.display = 'none'; 
+                friendListContainer.style.display = 'none';
                 return;
             }
 
             friendships.forEach(friendship => {
 
                 let friend;
-                if (friendship.user1.username === username){
+                if (friendship.user1.username === username) {
                     friend = friendship.user2;
-                } else {
+                }
+                else {
                     return;
                 }
                 console.log(friend);
-                
+
                 let friendElement = document.createElement('div');
                 friendElement.className = 'friend-info';
 
@@ -373,14 +319,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-function _getURLTargetUsername() {
+function _getURLRemoteUsername() {
     const pathSections = window.location.pathname.split('/').filter(Boolean);
     return pathSections[pathSections.length - 1];
 }
 
-function _getURLSelfUsername() {
+function _getURLRemoteNodename() {
     const pathSections = window.location.pathname.split('/').filter(Boolean);
     return pathSections[pathSections.length - 2];
+}
+
+function _getURLSelfUsername() {
+    const pathSections = window.location.pathname.split('/').filter(Boolean);
+    return pathSections[pathSections.length - 3];
 }
 
 function _getRelationAnalysis(relationResponse) {
@@ -389,8 +340,52 @@ function _getRelationAnalysis(relationResponse) {
     return relationResponse.get("mutual_follow")
 }
 
+async function _getRemoteUserOPENAPIS(serverNodeName, username) {
+    const encodedServerNodeName = encodeURIComponent(serverNodeName);
+    const encodedUsername = encodeURIComponent(username);
 
-function getCookie(name){
+    const url = `/api/getRemoteUserOPENAPIS/${encodedServerNodeName}/${encodedUsername}/`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log("data", data);
+        return data;
+    } catch (error) {
+        console.error('Error fetching remote user data:', error);
+    }
+}
+
+async function createRemoteMessage(remoteMsgOpenAPI, messageType, content, origin = "SYS") {
+    const csrfToken = getCsrfToken();
+    const response = await fetch(remoteMsgOpenAPI, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+        },
+        body: JSON.stringify({
+            message_type: messageType,
+            origin: origin,
+            content: content,
+        }),
+    });
+
+    if (response.ok) {
+        const data = await response.json();
+        console.log('Message created successfully:', data);
+    }
+    else {
+        const error = await response.json();
+        console.error('Failed to create message:', response.status, response.statusText, error);
+    }
+}
+
+
+function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
         const cookies = document.cookie.split(';');

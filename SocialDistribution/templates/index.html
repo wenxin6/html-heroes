@@ -19,7 +19,7 @@
     
     {% include 'postListContent.html' %}
         
-    {% if user.is_authenticated %}
+    {% if user.is_approved %}
     <button id="floating-button">+</button>
     {% endif %}
     

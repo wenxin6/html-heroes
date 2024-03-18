@@ -46,6 +46,32 @@ export async function createMessage(messageType, content, origin = "SYS") {
 }
 
 
+export async function createRemoteMessage(remoteMsgOpenAPI, messageType, content, origin = "SYS") {
+    const csrfToken = getCsrfToken();
+    const response = await fetch(remoteMsgOpenAPI, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+        },
+        body: JSON.stringify({
+            message_type: messageType,
+            origin: origin,
+            content: content,
+        }),
+    });
+
+    if (response.ok) {
+        const data = await response.json();
+        console.log('Message created successfully:', data);
+    }
+    else {
+        const error = await response.json();
+        console.error('Failed to create message:', response.status, response.statusText, error);
+    }
+}
+
+
 export async function deleteMessageType(messageType) {
     const url = `/api/msgs/deleteType/${messageType}/`;
     const csrfToken = getCsrfToken();

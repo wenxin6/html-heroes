@@ -47,10 +47,9 @@ urlpatterns = [
     path('api/follow-requests/reject/<str:origin_username>/', RejectFollowRequestAPIView.as_view(), name='reject-follow-request'),
 
     # Identity API System:
-    path("api/users/", UsersAPIView.as_view({'get': 'list'}), name="API_ALL_USER"),
     path("api/user/<str:username>/", UserAPIView.as_view(), name="API_USER"),                                                               # GET Self User/Profile Info        --> Test Success
     path("api/user/<str:user1_id>/<str:user2_id>/", UserAPIView.as_view(), name="API_USER_TWO"),                                            # GET Other's User/Profile Info     --> Test Success
-    path("profile/<str:username>/", approved_user_required(ProfileView.as_view()), name="PAGE_Profile"),
+    path("profile/<str:username>/", ProfileView.as_view(), name="PAGE_Profile"),
 
     path("friendPosts/<str:username>/profile/<str:selfUsername>/<str:targetUsername>/",
         lambda request, username, selfUsername, targetUsername:
@@ -84,23 +83,19 @@ urlpatterns = [
 
     # OpenAPI System:
     path('openapi/', OpenAPIView.as_view({'post': 'create', 'get': 'list', }), name='OPENAPI_AddConnect'),
-    path('openapi/<str:server_node_name>/search/', views.searchUserOPENAPI, name='OPENAPI_SearchUser'),
+    path('openapi/search/<str:server_node_name>/<str:remoteUsername>/', views.searchUserOPENAPI, name='OPENAPI_SearchUser'),
     path('openapi/message/<str:username>/', CreateMessageOPENAPIView.as_view(), name='OPENAPI_POSTUserMsg'),
-    path('openapi/followrequest/accept/<str:username>/', AcceptFollowRequestAPIView.as_view(), name='OPENAPI_AcceptFollowRequest'),
-    path('openapi/followrequest/reject/<str:username>/', RejectFollowRequestAPIView.as_view(), name='OPENAPI_RejectFollowRequest'),
+    path("openapi/profile/<str:selfUsername>/<str:server_node_name>/<str:remoteUsername>/", approved_user_required(remoteProfileView), name="PAGE_RemoteProfile"),
+    path('openapi/userposts/<str:username>/', PublicFriendsPostsListOPENView, name='OPENAPI_GETUserPosts'),
 
+    path('openapi/accept-remote-follow/<str:nodename>/<str:localUsername>/<str:remoteUsername>/', AcceptRemoteFollowRequestOPENAPIView, name='OPENAPI_AcceptFollowRequest'),
+    path('openapi/reject-remote-follow/<str:nodename>/<str:localUsername>/<str:remoteUsername>/', RejectRemoteFollowRequestOPENAPIView, name='OPENAPI_RejectFollowRequest'),
+
+    path("api/users/", UsersAPIView.as_view({'get': 'list'}), name=".lAPI_ALL_USER"),
     path('api/servernodes/', ServerNodeList.as_view(), name='nodeList'),
-    
+    path('api/getRemoteUserOPENAPIS/<str:server_node_name>/<str:username>/', views.getRemoteUserAPIS, name='API_GETRemoteUserAPIS'),
+    path('api/createLocalProjUser/', CreateLocalProjUser.as_view(), name='API_POSTLocalProjUser'),
 ]
-
-
-
-# DRF API Routers
-router.register(f"api/users", UsersAPIView, basename='users')
-
-
-# Add routers
-urlpatterns.append(path('', include(router.urls)))
 
 """
 MESSAGE_TYPES = [

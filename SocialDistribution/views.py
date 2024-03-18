@@ -19,6 +19,7 @@ from django.urls import reverse
 from django.core.files.base import ContentFile
 import base64
 import requests
+import uuid
 
 # REST Pattern:
 from rest_framework import generics, status, viewsets
@@ -38,6 +39,7 @@ from .permissions import IsAuthorOrReadOnly
 from .models import *
 
 User = get_user_model()
+HOSTNAME = "A"
 LOCALHOST = "http://127.0.0.1:8000"
 
 """
@@ -161,15 +163,11 @@ class FPsAPIView(generics.ListAPIView):
     def get(self, request, username):
         current_user = get_object_or_404(User, username=username)  # get current user
 
-        # Query the users followed by the current user
         user_following = User.objects.filter(reverse_following__user=current_user)
-        # Get query set of public posts from following users
         user_following_posts = Post.objects.filter(author__in=user_following, visibility='PUBLIC', is_draft=False)
 
-        # Get query set of current user's friend list  
         friends = User.objects.filter(friends_set1__user1=current_user).values_list('friends_set1__user2', flat=True)
 
-        # Get query set of friends’ public and friends-only posts
         friend_posts = Post.objects.filter(
             Q(author__in=friends, visibility='PUBLIC') |
             Q(author__in=friends, visibility='FRIENDS'), is_draft=False
@@ -203,7 +201,6 @@ class NPsAPIView(generics.CreateAPIView):
         original_post = serializer.save(author=self.request.user)
 
         post_content = f"{self.request.user.username} created a new post: {original_post.title}"
-
 
         # Logic to send notifications to all followers and friends
         followers = User.objects.filter(reverse_followers__user=original_post.author)
@@ -607,27 +604,6 @@ def search_user(request):
         return JsonResponse({'error': 'User not found'}, status=404)
 
 
-def searchUserOPENAPI(request, server_node_name):
-    query = request.GET.get('q', '')
-    current_user = request.user.username
-    server_node = get_object_or_404(ServerNode, name=server_node_name)
-
-    try:
-        search_results = perform_user_search(server_node, search_query)
-        if search_results:
-            # 如果找到了用户，则返回用户的 URL
-            user_url = search_results.get('url', '')
-            if user_url:
-                return JsonResponse({'url': user_url})
-            else:
-                return JsonResponse({'error': 'User URL not found'}, status=404)
-        else:
-            # 如果没有找到用户，则返回错误信息
-            return JsonResponse({'error': 'User not found'}, status=404)
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
-
 """
 ---------------------------------- Friend System Settings ----------------------------------
 """
@@ -924,6 +900,11 @@ class DeleteIDOfMessageAPIView(APIView):
         return JsonResponse({'status': 'success', 'message': f'Message with id={ID} is deleted.'})
 
 
+"""
+---------------------------------- OpenAPI Settings ----------------------------------
+"""
+
+
 class OpenAPIUserAPIView(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = OpenAPIServerNodeSerializer
@@ -938,16 +919,18 @@ class OpenAPIView(viewsets.ModelViewSet):
             'our_openapi_instruction': "This is an auto-response that may help you set connection to our OpenAPIs, you "
                                        "could fetch the OpenAPIs shown below to access specific information about ours.",
             'our_openapi_url': {
+                'our_host_name': HOSTNAME,
                 'to_add_a_connection_with_us': f'{LOCALHOST}/openapi/',
-                'to_search_a_spec_user': f'{LOCALHOST}/openapi/search/?q=<str:username>',
+                'to_search_a_spec_user': f'{LOCALHOST}/openapi/search/<str:server_node_name>/?q=<str:username>',
                 'to_info_a_spec_user': f'{LOCALHOST}/openapi/message/<str:username>/',
+                'to_get_our_user_list': f'{LOCALHOST}/api/users/',
             },
             'our_openapi_method': {
+                'our_host_name': HOSTNAME,
                 'to_add_a_connection_with_us': 'POST, GET',
                 'to_search_a_spec_user': 'GET',
                 'to_info_a_spec_user': 'POST',
             },
-
         }
 
         return Response(json_response)
@@ -976,26 +959,29 @@ class OpenAPIView(viewsets.ModelViewSet):
                 return True
         return False
 
+
 class ServerNodeList(generics.ListAPIView):
     queryset = ServerNode.objects.all()
     serializer_class = OpenAPIServerNodeSerializer
+
 
 @api_view(['GET'])
 def getRemoteUsers(request, server_node_name):
     server_node = get_object_or_404(ServerNode, name=server_node_name)
     print(server_node)
-    
+
     try:
         response = requests.get(server_node.userAPI, timeout=10)
-        response.raise_for_status()  
-        users = response.json() 
-        serializer = UserSerializer(users, many=True)  
+        response.raise_for_status()
+        users = response.json()
+        serializer = UserSerializer(users, many=True)
 
         return Response(serializer.data)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-def getRemoteUserAPIS(request, username):
+
+def getRemoteUserAPIS(request, server_node_name, username):
     remoteUser = get_object_or_404(User, username=username)
     urls = {
         'remote_node_Name': remoteUser.server_node_name if remoteUser.server_node_name else "",
@@ -1004,3 +990,122 @@ def getRemoteUserAPIS(request, username):
         'remote_follow_api_url': remoteUser.remoteFollowAPI if remoteUser.remoteFollowAPI else "",
     }
     return JsonResponse(urls)
+
+
+@api_view(['GET'])
+def searchUserOPENAPI(request, server_node_name, remoteUsername):
+    try:
+        remoteUser = User.objects.filter(username=remoteUsername, server_node_name=server_node_name)
+        print("remoteUsername", remoteUsername)
+        print("server_node_name", server_node_name)
+        return Response({"message": "user valid."}, status=status.HTTP_200_OK)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+
+
+
+class CreateLocalProjUser(APIView):
+    def post(self, request, format=None):
+        print("request.data ---> ",request.data) 
+        base_username = request.data.get('username')
+        email = request.data.get('email')
+        bio = request.data.get('bio')
+        server_node_name = request.data.get('server_node_name')
+        remoteOpenapi = request.data.get('remoteOpenapi')
+        remoteInboxAPI = request.data.get('remoteInboxAPI')
+        remoteFollowAPI = request.data.get('remoteFollowAPI')
+        unique_username = f"{server_node_name}.{base_username}"
+
+        
+        print(unique_username)
+        # 检查是否已经存在具有相同节点和用户名组合的用户
+        if User.objects.filter(server_node_name=server_node_name, username=username).exists():
+            return Response({'error': 'User with the same node and username combination already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        serializer = UserSerializer(data=request.data)
+        print("serializer.is_valid():", serializer.is_valid())
+        print("serializer.errors:", serializer.errors)
+
+        if serializer.is_valid():
+            
+            user = serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# def generate_unique_username(server_node_name, base_username):
+#     # Generate a unique identifier (UUID)
+#     unique_identifier = uuid.uuid4().hex[:6]  # Using the first 6 characters of the UUID
+
+#     # Combine server_node_name, base_username, and unique identifier
+#     unique_username = f"{server_node_name}.{base_username}.{unique_identifier}"
+
+#     return unique_username
+
+def remoteProfileView(request, selfUsername, server_node_name, remoteUsername):
+    selfUser = get_object_or_404(User, username=selfUsername)
+    remoteUser = get_object_or_404(User, username=remoteUsername)
+    context = {
+        'user': remoteUser,
+        'posts': Post.objects.filter(author=remoteUser).order_by('-date_posted')
+    }
+    return render(request, 'remoteProfile.html', context)
+
+
+def _checkRelation(username1, username2):
+    user1 = get_object_or_404(User, username=username1)
+    user2 = get_object_or_404(User, username=username2)
+
+    user1_follows_user2 = Following.objects.filter(user=user1, following=user2).exists()
+    user2_follows_user1 = Following.objects.filter(user=user2, following=user1).exists()
+    user1_followed_by_user2 = Follower.objects.filter(user=user1, follower=user2).exists()
+    user2_followed_by_user1 = Follower.objects.filter(user=user2, follower=user1).exists()
+
+    user1_makeFriend_user2 = Friend.objects.filter(user1=user1, user2=user2).exists()
+    user2_makeFriend_user1 = Friend.objects.filter(user1=user2, user2=user1).exists()
+
+    data = {
+        'user1_follows_user2': user1_follows_user2,
+        'user2_follows_user1': user2_follows_user1,
+        'user1_followed_by_user2': user1_followed_by_user2,
+        'user2_followed_by_user1': user2_followed_by_user1,
+        'already_friend': user1_makeFriend_user2 and user2_makeFriend_user1,
+        'mutual_follow': user1_follows_user2 and user2_follows_user1 and user1_followed_by_user2 and user2_followed_by_user1,
+    }
+    return Response(data)
+
+
+@api_view(['GET'])
+class AcceptRemoteFollowRequestOPENAPIView(APIView):
+    def get(self, request, nodename, localUsername, remoteUsername, format=None):
+        localUser = get_object_or_404(User, username=localUsername)
+        remoteUser = get_object_or_404(User, username=remoteUsername, server_node_name=nodename)
+
+        follow_request = get_object_or_404(Following, user=localUser, following=remoteUser, status='PENDING')
+        follow_request.status = 'ACCEPTED'
+        follow_request.save()
+        return Response({"message": "Follow request is accepted."}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+class RejectRemoteFollowRequestOPENAPIView(APIView):
+    def get(self, request, nodename, localUsername, remoteUsername, format=None):
+        localUser = get_object_or_404(User, username=localUsername)
+        remoteUser = get_object_or_404(User, username=remoteUsername, server_node_name=nodename)
+
+        follow_request = get_object_or_404(Following, user=localUser, following=remoteUser, status='PENDING')
+        follow_request.status = 'REJECTED'
+        follow_request.save()
+        return Response({"message": "Follow request is rejected."}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+class PublicFriendsPostsListOPENView(generics.ListAPIView):
+    serializer_class = PostSerializer
+    permission_classes = [IsAuthenticated]
+    def get_queryset(self):
+        username = self.kwargs['username']
+        user = get_object_or_404(User, username=username)
+        return Post.objects.filter(
+            Q(author=user),
+            ~Q(visibility='PRIVATE')
+        ).order_by('-date_posted')

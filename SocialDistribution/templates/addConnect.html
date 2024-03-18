@@ -24,15 +24,13 @@
     <h2 class="ac-comment"> Please add a remote node connection </h2>
     <form>
         {% csrf_token %}
-        <input type="url" class="ac-input" name="targetHost" placeholder="URL for OpenAPI (Remote)" required
-               autofocus>
+        <input type="url" class="ac-input" name="targetHost" placeholder="URL for TargetHost (Remote)" required autofocus>
+        <input type="url" class="ac-input" name="targetOpenapi" placeholder="URL for TargetHost OpenAPI (Remote)" required autofocus>
         <input type="text" class="ac-input" name="username" placeholder="Username (Connection Key)" required
                autofocus>
         <input type="password" class="ac-input" name="password" placeholder="Password (Connection Key)" required>
         <h2 class="ac-comment"> Please provide local info for remote tracking </h2>
         <input type="text" class="ac-input" name="localName" placeholder="Our Server Name (Local)" required>
-        <input type="url" class="ac-input" name="localUserListAPI" placeholder="URL for Our UserListAPI (Local)"
-               required>
         
         <button type="submit" class="ac-button">Connect Node</button>
         {% if form.non_field_errors %}

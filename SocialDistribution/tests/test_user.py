@@ -15,44 +15,9 @@ from SocialDistribution.models import User, Post, Following, Follower, Friend
 class UserAPITests(APITestCase):
     def setUp(self):
         # Create two test users
-        self.user1 = User.objects.create_user(username='user1', password='password1')
-        self.user2 = User.objects.create_user(username='user2', password='password2')
+        self.user1 = User.objects.create_user(username='user1', password='password1', is_approved=True)
+        self.user2 = User.objects.create_user(username='user2', password='password2', is_approved=True)
         self.client.login(username='user1', password='password1')
-
-    def test_create_user(self):
-        # Test creating a new user
-        url = reverse('users-list')
-        data = {
-            'username': 'newuser',
-            'password': 'newpassword',
-            'email': 'newuser@example.com'
-        }
-        response = self.client.post(url, data)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(User.objects.count(), 3)  # Including the two users from setUp
-
-    def test_get_user_profile(self):
-        # Test retrieving a user's profile
-        url = reverse('users-detail', kwargs={'pk': self.user2.pk})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['username'], 'user2')
-
-    def test_update_user_profile(self):
-        # Test updating a user's profile
-        url = reverse('users-detail', kwargs={'pk': self.user1.pk})
-        data = {'username': 'UpdatedName'}
-        response = self.client.patch(url, data)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.user1.refresh_from_db()
-        self.assertEqual(self.user1.username, 'UpdatedName')
-
-    def test_delete_user(self):
-        # Test deleting a user
-        url = reverse('users-detail', kwargs={'pk': self.user2.pk})
-        response = self.client.delete(url)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(User.objects.count(), 1)
 
     def test_upload_avatar(self):
         url = reverse('API_UploadAvatar', kwargs={'username': self.user1.username})
@@ -163,7 +128,10 @@ class UserAPITests(APITestCase):
         response = self.client.post(url)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.user2.refresh_from_db()
-        self.assertTrue(self.user2.following.filter(pk=self.user1.pk).exists())
+
+        queryset = Following.objects.filter(user=self.user1, following=self.user2)
+        self.assertTrue(queryset.exists())
+        self.assertEqual(queryset.first().status, 'PENDING')
 
     def test_get_following(self):
         # Test getting list of following for a user
@@ -172,7 +140,7 @@ class UserAPITests(APITestCase):
             kwargs={'username': self.user1.username}
         )  # Assume this is the correct URL name
         # The user1 should follow user2 to have a non-empty following list
-        self.user1.following.add(Following.objects.create(user=self.user1, following=self.user2))
+        self.user1.following.add(Following.objects.create(user=self.user1, following=self.user2, status='ACCEPTED'))
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn(self.user2.username, [followee['following']['username'] for followee in response.data])
