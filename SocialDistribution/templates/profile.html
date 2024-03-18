@@ -101,9 +101,10 @@
                     <button id="following-btn" class="following-button">Following</button>
                 </a>
             </div>
-            {% if not user.username == request.user.username and not user.username in following_usernames %}
-                <button id="follow-btn" data-username="{{ user.username }}">follow</button>
-            {% endif %}
+            
+            
+            <button id="follow-btn" data-username="{{ user.username }}" style="display: none;">follow</button>
+            <button id="unfollow-btn" data-username="{{ user.username }}" style="display: none;">Unfollow</button>
 
             
         </div>

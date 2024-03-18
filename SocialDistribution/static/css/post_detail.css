@@ -36,7 +36,7 @@ body  {
     max-width: 600px;
     margin: 20px auto;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    border-radius: 20px;
+    border-radius: 10px;
 }
 
 .back-button-container {
@@ -50,7 +50,7 @@ body  {
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     margin: -20px -20px;
     z-index: 100;
-    border-radius: 20px 20px 0px 0px;
+    border-radius: 10px 10px 0px 0px;
 }
 
 .more-options-button {
@@ -282,7 +282,7 @@ body  {
     padding: 10px 0; /* Only top and bottom padding */
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     margin: 0 0;
-    border-radius: 0px 0px 20px 20px;
+    border-radius: 0px 0px 10px 10px;
 }
 
 .action {

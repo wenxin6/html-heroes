@@ -25,69 +25,9 @@ body {
     padding-top: 60px;
 }
 
-
-.user-avatar {
-    height: 30px;
-    width: 30px;
-    border-radius: 50%;
-}
-
-
-
-.post-button {
-    background-color: var(--btn-bg-color);
-    color: white;
-    padding: 5px 10px;
-    border: none;
-    border-radius: 25px;
-    cursor: pointer;
-    margin-right: 30px;
-    margin-top: 10px;
-}
-
-.post-button:active,
-.post-button:hover {
-    background-color: var(--btn-hover-color);
-}
-
 a {
     text-decoration: none;
     color: black;
-}
-
-.like-btn,
-.comment-btn,
-.submit-comment,
-.post-button {
-    background-color: var(--btn-bg-color);
-    color: white;
-    padding: 5px 10px;
-    border: none;
-    border-radius: 25px;
-    cursor: pointer;
-    margin-left: 30px;
-    margin-top: 15px;
-    float: right;
-}
-
-.like-btn:hover,
-.comment-btn:hover,
-.submit-comment:hover {
-    background-color: var(--btn-hover-color);
-}
-
-.comment-box {
-    width: 100%;
-    margin-top: 10px;
-}
-
-.comment-text {
-    width: calc(100% - 20px);
-    padding: 10px;
-    border: 1px solid #e1e1e1;
-    border-radius: 5px;
-    height: 100px;
-    margin-bottom: 5px;
 }
 
 /* Floating Action Button */
@@ -110,6 +50,7 @@ a {
     border: none;
     z-index: 1;
 }
+
 #floating-button:hover {
     transform: scale(1.1);
 }

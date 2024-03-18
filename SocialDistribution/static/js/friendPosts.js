@@ -40,10 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const interactionHTML = `
                     <div class="interact-container">
-                        <button id="share-${post.id}" type="button" data-post-id="${post.id}">
-                            <ion-icon size="small" name="share-outline" style="margin-right: 8px;"></ion-icon>
-                            Share <span class="share-count">${post.share_count}</span>
-                        </button>
                         <button id="comment-${post.id}" type="button" data-post-id="${post.id}">
                             <ion-icon size="small" name="chatbox-ellipses-outline" style="margin-right: 8px;">
                             </ion-icon>
@@ -60,47 +56,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
 
-                postLink.innerHTML = userInfoHTML + contentHTML;
+                // Append userInfoHTML, contentHTML, and interactionHTML to postLink instead of postElement
+                postLink.innerHTML = userInfoHTML + contentHTML + interactionHTML;
                 postElement.appendChild(postLink);
-                postElement.innerHTML += interactionHTML;
+                // postElement.innerHTML += interactionHTML;
                 postContainer.appendChild(postElement);
 
-                const likeButton = postElement.querySelector(`#like-${post.id}`);
-                likeButton.addEventListener('click', function() {
-                    console.log("like clicked",`api/posts/${post.id}/likes/`);
-                    // 点赞操作的 AJAX 请求
-                    // 更新点赞计数
-                    fetch(`/api/posts/${post.id}/likes/`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken'), 
-                            'Content-Type': 'application/json'
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            // 更新页面上的点赞计数
-                            const likeCountSpan = postElement.querySelector(`#like-${post.id} .like-count`);
-                            likeCountSpan.textContent = data.likes_count; // 假设后端返回更新后的点赞计数
-                        } else {
-                            // 处理错误情况
-                            console.error('Error:', data.error);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                    });
-                });
-
-
-                // Event listeners for like button
-                const commentButton = postElement.querySelector(`#comment-${post.id}`);
-                commentButton.addEventListener('click', function() {
-                    console.log("comment clicked");
-                    // 评论操作的 AJAX 请求
-                    // 更新评论计数
-                });
+                
             });
         })
         .catch(error => console.error('Error:', error));

@@ -335,6 +335,12 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch(`/api/user/${username}/friends/`)
         .then(response => response.json())
         .then(friendships => {
+            // console.log(friendships.length);
+            if (friendships.length === 0) {
+                friendListContainer.style.display = 'none'; 
+                return;
+            }
+
             friendships.forEach(friendship => {
 
                 let friend;
