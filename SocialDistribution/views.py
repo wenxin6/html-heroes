@@ -39,8 +39,8 @@ from .permissions import IsAuthorOrReadOnly
 from .models import *
 
 User = get_user_model()
-HOSTNAME = "socialdistrib-server-eden"
-LOCALHOST = "https://socialdistrib-server-eden-1ad4ce294a84.herokuapp.com"
+HOSTNAME = "socialdistrib-server-wenxin"
+LOCALHOST = "https://html-heroes-part2-d73495f6e094.herokuapp.com"
 
 """
 ---------------------------------- Signup/Login Settings ----------------------------------
